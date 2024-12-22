@@ -35,6 +35,7 @@ class RedditApiBase:
         self.token: str = ""
         self.last_request_timestamp: float = time.time() - REQUEST_INTERVAL
         self.default_headers = {"User-Agent": f"linux:{self.auth_params.app_id}:v0.5 (by /u/{self.auth_params.username})"}
+        self.has_to_wait: int = 0
 
     def authorize(self):
         auth = HTTPBasicAuth(self.auth_params.app_id, self.auth_params.secret)
@@ -57,6 +58,9 @@ class RedditApiBase:
         additional_headers: dict = None,
         body: dict = None,
     ) -> dict:
+        for _ in range(self.has_to_wait):
+            print("Waiting for request limits to be restored...")
+            time.sleep(1)
         if not self.token:
             self.authorize()
         if not additional_headers:
@@ -71,6 +75,8 @@ class RedditApiBase:
             raise RedditApiError(f"Response to {endpoint} failed with code {response.status_code}.\n"
                                  f"Body: {response.json()}")
         self.last_request_timestamp = time.time()
+        if float(response.headers["X-Ratelimit-Remaining"]) < 2:
+            self.has_to_wait = int(float(response.headers["X-Ratelimit-Reset"]))
         return response.json()
 
 
