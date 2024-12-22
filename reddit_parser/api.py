@@ -47,6 +47,7 @@ class RedditApiBase:
                                  headers=self.default_headers)
         if response.status_code != HTTPStatus.OK:
             raise RedditApiError(f"Authorization failed. Response: {response.json()}")
+        self.last_request_timestamp = time.time()
         self.token = response.json()["access_token"]
 
     def send(
@@ -62,13 +63,14 @@ class RedditApiBase:
             additional_headers = {}
         additional_headers["Authorization"] = f"bearer {self.token}"
         additional_headers.update(self.default_headers)
-        if need_to_wait := (self.last_request_timestamp + REQUEST_INTERVAL) > time.time():
-            time.sleep(need_to_wait - time.time())
+        if (allowed_time := (self.last_request_timestamp + REQUEST_INTERVAL)) > (current_time := time.time()):
+            time.sleep(allowed_time - current_time)
         response = requests.request(
             method, url=self.base_url + endpoint, headers=additional_headers, json=body, params={"raw_json": 1})
         if response.status_code != HTTPStatus.OK:
             raise RedditApiError(f"Response to {endpoint} failed with code {response.status_code}.\n"
                                  f"Body: {response.json()}")
+        self.last_request_timestamp = time.time()
         return response.json()
 
 
