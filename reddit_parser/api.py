@@ -103,3 +103,18 @@ class RedditSubreddits(RedditApiBase):
             endpoint=f"/r/{subreddit_name}/top",
             params=params,
         )
+
+    def new(self, subreddit_name, before: str = None, after: str = None):
+        params = {
+            "limit": 100,
+        }
+        if before:
+            params["before"] = before
+        if after:
+            params["after"] = after
+
+        return self.send(
+            "GET",
+            endpoint=f"/r/{subreddit_name}/new",
+            params=params,
+        )

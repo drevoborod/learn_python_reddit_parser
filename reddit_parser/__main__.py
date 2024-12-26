@@ -1,23 +1,14 @@
 import argparse
-import string
 import json
+from enum import StrEnum
 
-from reddit_parser.searcher import TopSearcher
+from reddit_parser.searcher import TopLinksSearcher, Searcher, TopUsersSearcher
 
 
-def to_base(number: int, base: int=36) -> str:
-    """Converts a non-negative number to a list of digits in the given base.
+class TopMode(StrEnum):
+    TOP_LINKS = "top_links"
+    TOP_USERS = "top_users"
 
-    """
-    symbols = string.digits + string.ascii_lowercase
-    if not number:
-        return "0"
-
-    digits = []
-    while number:
-        digits.append(symbols[number % base])
-        number //= base
-    return "".join(list(reversed(digits)))
 
 def save(name: str, data: dict | list):
     with open(name, "w") as file:
@@ -27,17 +18,26 @@ def save(name: str, data: dict | list):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("subreddit", help="Subreddit name to search links in.")
-    parser.add_argument("-d", "--days", help="Count of days.", required=False, type=int)
+    parser.add_argument("-d", "--days", help="Count of days.", required=False, type=int, default=3)
+    parser.add_argument(
+        "-m", "--mode", help="Count of days.",
+        required=False, type=TopMode, default=TopMode.TOP_USERS
+    )
     return parser.parse_args()
 
 
-def main(report_filename: str = "top_links.json"):
+def main(report_filename: str = "result.json") -> str:
     params = get_args()
-    if not params.days:
-        params.days = 3
-    searcher = TopSearcher()
+    match params.mode:
+        case TopMode.TOP_LINKS:
+            searcher: Searcher = TopLinksSearcher()
+        case TopMode.TOP_USERS:
+            searcher: Searcher = TopUsersSearcher()
+        case _:
+            return f"Unknown mode: {params.mode}"
     save(report_filename, searcher.get(params.subreddit, params.days))
+    return f"Results saved to {report_filename}."
 
 
 if __name__ == "__main__":
-    main()
+    print(main())
