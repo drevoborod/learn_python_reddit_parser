@@ -56,6 +56,7 @@ class RedditApiBase:
         method: Literal["GET", "get", "POST", "post"],
         endpoint: str,
         additional_headers: dict = None,
+        params: dict = None,
         body: dict = None,
     ) -> dict:
         for _ in range(self.has_to_wait):
@@ -67,10 +68,13 @@ class RedditApiBase:
             additional_headers = {}
         additional_headers["Authorization"] = f"bearer {self.token}"
         additional_headers.update(self.default_headers)
+        if not params:
+            params = {}
+        params["raw_json"] = 1
         if (allowed_time := (self.last_request_timestamp + REQUEST_INTERVAL)) > (current_time := time.time()):
             time.sleep(allowed_time - current_time)
         response = requests.request(
-            method, url=self.base_url + endpoint, headers=additional_headers, json=body, params={"raw_json": 1})
+            method, url=self.base_url + endpoint, headers=additional_headers, json=body, params=params)
         if response.status_code != HTTPStatus.OK:
             raise RedditApiError(f"Response to {endpoint} failed with code {response.status_code}.\n"
                                  f"Body: {response.json()}")
@@ -85,3 +89,17 @@ class RedditUserInfo(RedditApiBase):
         return self.send("get", endpoint="/api/v1/me")
 
 
+class RedditSubreddits(RedditApiBase):
+    def top(self, subreddit_name, before: str = None):
+        params = {
+            "t": "all",
+            "limit": 100,
+        }
+        if before:
+            params["before"] = before
+
+        return self.send(
+            "GET",
+            endpoint=f"/r/{subreddit_name}/top",
+            params=params,
+        )

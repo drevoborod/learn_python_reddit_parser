@@ -1,7 +1,8 @@
+import argparse
 import string
 import json
 
-from reddit_parser.api import RedditUserInfo
+from reddit_parser.searcher import TopSearcher
 
 
 def to_base(number: int, base: int=36) -> str:
@@ -18,11 +19,24 @@ def to_base(number: int, base: int=36) -> str:
         number //= base
     return "".join(list(reversed(digits)))
 
+def save(name: str, data: dict | list):
+    with open(name, "w") as file:
+        file.write(json.dumps(data, indent=4))
 
-def main():
-    api = RedditUserInfo()
-    res = api.me()
-    print(json.dumps(res, indent=4))
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("subreddit", help="Subreddit name to search links in.")
+    parser.add_argument("-d", "--days", help="Count of days.", required=False, type=int)
+    return parser.parse_args()
+
+
+def main(report_filename: str = "top_links.json"):
+    params = get_args()
+    if not params.days:
+        params.days = 3
+    searcher = TopSearcher()
+    save(report_filename, searcher.get(params.subreddit, params.days))
 
 
 if __name__ == "__main__":
