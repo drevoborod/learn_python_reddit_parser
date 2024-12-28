@@ -23,10 +23,14 @@ def get_args():
         "-m", "--mode", help="Count of days.",
         required=False, type=TopMode, default=TopMode.TOP_USERS
     )
+    parser.add_argument(
+        "-f", "--file", help="File name to save results into.",
+        required=False, type=str, default="result.json"
+    )
     return parser.parse_args()
 
 
-def main(report_filename: str = "result.json") -> str:
+def main() -> str:
     params = get_args()
     match params.mode:
         case TopMode.TOP_LINKS:
@@ -35,6 +39,7 @@ def main(report_filename: str = "result.json") -> str:
             searcher: Searcher = TopUsersSearcher()
         case _:
             return f"Unknown mode: {params.mode}"
+    report_filename = params.file
     save(report_filename, searcher.get(params.subreddit, params.days))
     return f"Results saved to {report_filename}."
 

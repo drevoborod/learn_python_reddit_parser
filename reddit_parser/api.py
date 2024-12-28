@@ -90,7 +90,7 @@ class RedditUserInfo(RedditApiBase):
 
 
 class RedditSubreddits(RedditApiBase):
-    def top(self, subreddit_name, before: str = None):
+    def top(self, subreddit_name: str, before: str = None):
         params = {
             "t": "all",
             "limit": 100,
@@ -104,7 +104,7 @@ class RedditSubreddits(RedditApiBase):
             params=params,
         )
 
-    def new(self, subreddit_name, before: str = None, after: str = None):
+    def new(self, subreddit_name: str, before: str = None, after: str = None):
         params = {
             "limit": 100,
         }
@@ -116,5 +116,13 @@ class RedditSubreddits(RedditApiBase):
         return self.send(
             "GET",
             endpoint=f"/r/{subreddit_name}/new",
+            params=params,
+        )
+
+    def comments(self, subreddit_name: str, article: str):
+        params = {"sort": "new"}
+        return self.send(
+            "GET",
+            endpoint=f"/r/{subreddit_name}/comments/{article}",
             params=params,
         )
