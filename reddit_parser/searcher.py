@@ -1,20 +1,24 @@
 import string
+from abc import ABC
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Any
 
-from reddit_parser.api import RedditSubreddits
+from reddit_parser.api import RedditApi
 
 
-class Searcher(Protocol):
+type Json = dict[str, Any] | list[dict[str, Any]]
+
+
+class Searcher(ABC):
+    def __init__(self, api: RedditApi):
+        self.api = api
+
     def get(self, subreddit_name: str, days: int = 3) -> list | dict:
         """Returns list of filtered subreddit's 'links' or another info in a JSON-ready structure."""
 
 
 class TopLinksSearcher(Searcher):
-    def __init__(self):
-        self.api = RedditSubreddits()
-
     def get(self, subreddit_name: str, days: int = 3) -> list[dict]:
         threshold = datetime.now() - timedelta(days=days)
         links = self.get_links_from_api(subreddit_name)
@@ -28,7 +32,7 @@ class TopLinksSearcher(Searcher):
                 return self._sort_links_by_score(links[:index])
 
     def get_links_from_api(self, subreddit_name: str, before: str = None) -> list:
-        res =self.api.top(subreddit_name, before=before)
+        res = self.api.subreddits.get_top(subreddit_name, before=before)
         links = deepcopy(res["data"]["children"])
         return sorted(links, key=lambda x: x["data"]["created"], reverse=True)
 
@@ -37,9 +41,6 @@ class TopLinksSearcher(Searcher):
 
 
 class TopUsersSearcher(Searcher):
-    def __init__(self):
-        self.api = RedditSubreddits()
-
     def get(self, subreddit_name: str, days: int = 3) -> dict[str, list[str]]:
         threshold = datetime.now() - timedelta(days=days)
         links = self.get_links_from_api(subreddit_name)
@@ -56,12 +57,12 @@ class TopUsersSearcher(Searcher):
                 }
 
     def get_links_from_api(self, subreddit_name: str, before: str = None, after: str = None) -> list:
-        res = self.api.new(subreddit_name, before=before, after=after)
+        res = self.api.subreddits.get_new(subreddit_name, before=before, after=after)
         links = deepcopy(res["data"]["children"])
         return sorted(links, key=lambda x: x["data"]["created"], reverse=True)
 
     def _top_users_by_comments(self, subreddit_name: str, links: list[dict]) -> list[str]:
-        comments_dict = {link["data"]["id"]: self.api.comments(subreddit_name, link["data"]["id"]) for link in links}
+        comments_dict = {link["data"]["id"]: self.api.subreddits.get_comments(subreddit_name, link["data"]["id"]) for link in links}
         authors = {}
         for comment_data in comments_dict.values():
             for comment_branch in comment_data:
