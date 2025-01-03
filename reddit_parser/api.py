@@ -1,9 +1,11 @@
 import time
+from typing import Any
 
 import httpx
 from httpx import Request, Response
 
 from reddit_parser.config import AuthConfig
+from reddit_parser.models import RedditEntity, RedditEntityKinds
 
 
 REQUEST_INTERVAL = 60 / 90
@@ -14,7 +16,7 @@ class RedditAuthorizationError(RedditApiError): pass
 
 
 class Transport(httpx.BaseTransport):
-    def __init__(self):
+    def __init__(self) -> None:
         self._wrapper = httpx.HTTPTransport()
         self.time_to_wait = 0.0
         self.last_request_timestamp = time.time() - REQUEST_INTERVAL
@@ -28,7 +30,7 @@ class Transport(httpx.BaseTransport):
             time.sleep(allowed_time - current_time)
         response = self._wrapper.handle_request(request)
         self.last_request_timestamp = time.time()
-        if remained_requests := response.headers.get("X-Ratelimit-Remaining") is not None:
+        if (remained_requests := response.headers.get("X-Ratelimit-Remaining")) is not None:
             if float(remained_requests) < 2:
                 self.time_to_wait = float(response.headers["X-Ratelimit-Reset"])
         return response
@@ -60,10 +62,10 @@ class RedditApi:
 
 
 class RedditUser:
-    def __init__(self, client: httpx.Client):
+    def __init__(self, client: httpx.Client) -> None:
         self.client = client
 
-    def _get(self, endpoint: str, params: dict = None) -> dict:
+    def _get(self, endpoint: str, params: dict = None) -> dict[str, Any] | list[Any]:
         if not params:
             params = {}
         params["raw_json"] = 1
@@ -73,15 +75,15 @@ class RedditUser:
                                  f"Body: {response.json()}")
         return response.json()
 
-    def get_me(self):
+    def get_me(self) -> dict[str, Any]:
         return self._get(endpoint="/api/v1/me")
 
 
 class RedditSubreddits:
-    def __init__(self, client: httpx.Client):
+    def __init__(self, client: httpx.Client) -> None:
         self.client = client
 
-    def _get(self, endpoint: str, params: dict = None) -> dict:
+    def _get(self, endpoint: str, params: dict = None) -> dict[str, Any] | list[Any]:
         if not params:
             params = {}
         params["raw_json"] = 1
@@ -91,7 +93,7 @@ class RedditSubreddits:
                                  f"Body: {response.json()}")
         return response.json()
 
-    def get_top(self, subreddit_name: str, before: str = None):
+    def get_top(self, subreddit_name: str, before: str = None) -> list[RedditEntity]:
         params = {
             "t": "all",
             "limit": 100,
@@ -99,12 +101,13 @@ class RedditSubreddits:
         if before:
             params["before"] = before
 
-        return self._get(
+        result = self._get(
             endpoint=f"/r/{subreddit_name}/top",
             params=params,
         )
+        return _convert_reddit_response_to_models(result["data"]["children"])
 
-    def get_new(self, subreddit_name: str, before: str = None, after: str = None):
+    def get_new(self, subreddit_name: str, before: str = None, after: str = None) -> list[RedditEntity]:
         params = {
             "limit": 100,
         }
@@ -113,14 +116,29 @@ class RedditSubreddits:
         if after:
             params["after"] = after
 
-        return self._get(
+        result = self._get(
             endpoint=f"/r/{subreddit_name}/new",
             params=params,
         )
+        return _convert_reddit_response_to_models(result["data"]["children"])
 
-    def get_comments(self, subreddit_name: str, article: str):
-        params = {"sort": "new"}
-        return self._get(
+    def get_comments(self, subreddit_name: str, article: str) -> list[RedditEntity]:
+        params = {"sort": "new", "depth": 100}
+        result = self._get(
             endpoint=f"/r/{subreddit_name}/comments/{article}",
             params=params,
         )
+        return _convert_reddit_response_to_models(result[1]["data"]["children"])
+
+
+def _convert_reddit_response_to_models(data: list[dict[str, Any]]) -> list[RedditEntity]:
+    return [
+        RedditEntity(
+            id=item["data"]["id"],
+            author=item["data"]["author"],
+            created=item["data"]["created"],
+            name=item["data"]["name"],
+            kind=item["kind"],
+            score=item["data"]["score"]
+        ) for item in data if item["kind"] in RedditEntityKinds
+    ]
