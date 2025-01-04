@@ -10,7 +10,7 @@ from httpx import Request, Response
 
 from reddit_parser.config import AuthConfig
 from reddit_parser.models import RedditEntity, RedditEntityKinds
-
+from reddit_parser.utils import variable_to_boolean
 
 REQUEST_INTERVAL = 60 / 90
 
@@ -25,10 +25,11 @@ class Transport(httpx.BaseTransport):
         self.time_to_wait = 0.0
         self.last_request_timestamp = time.time() - REQUEST_INTERVAL
         self.logger = None
-        if int(os.getenv("ENABLE_REDDIT_PARSER_LOGGING")):
+        if variable_to_boolean(os.getenv("ENABLE_REDDIT_PARSER_LOGGING")):
             self.logger = logging.Logger("FileLogger")
-            self.logger.addHandler(logging.FileHandler("responses.log"))
-            self.logger.setLevel(logging.DEBUG)
+            handler = logging.FileHandler("responses.log")
+            handler.setLevel(logging.DEBUG)
+            self.logger.addHandler(handler)
             self.logger.debug(f"\n\n{'-' * 20}\n{datetime.datetime.now()}\n")
 
     def handle_request(self, request: Request) -> Response:
@@ -84,7 +85,7 @@ class RedditUser:
     def __init__(self, client: httpx.Client) -> None:
         self.client = client
 
-    def _get(self, endpoint: str, params: dict = None) -> dict[str, Any] | list[Any]:
+    def _get(self, endpoint: str, params: dict[str, Any] = None) -> dict[str, Any] | list[Any]:
         if not params:
             params = {}
         params["raw_json"] = 1
@@ -102,7 +103,7 @@ class RedditSubreddits:
     def __init__(self, client: httpx.Client) -> None:
         self.client = client
 
-    def _get(self, endpoint: str, params: dict = None) -> dict[str, Any] | list[Any]:
+    def _get(self, endpoint: str, params: dict[str, Any] = None) -> dict[str, Any] | list[Any]:
         if not params:
             params = {}
         params["raw_json"] = 1
@@ -113,7 +114,7 @@ class RedditSubreddits:
         return response.json()
 
     def get_top(self, subreddit_name: str, before: str = None) -> list[RedditEntity]:
-        params = {
+        params: dict[str, int | str] = {
             "t": "all",
             "limit": 100,
         }
@@ -127,7 +128,7 @@ class RedditSubreddits:
         return _convert_reddit_response_to_models(result["data"]["children"])
 
     def get_new(self, subreddit_name: str, before: str = None, after: str = None) -> list[RedditEntity]:
-        params = {
+        params: dict[str, str | int] = {
             "limit": 100,
         }
         if before:
@@ -142,7 +143,7 @@ class RedditSubreddits:
         return _convert_reddit_response_to_models(result["data"]["children"])
 
     def get_comments(self, subreddit_name: str, article: str) -> list[RedditEntity]:
-        params = {"sort": "new", "depth": 100}
+        params: dict[str, int | str] = {"sort": "new", "depth": 100}
         result = self._get(
             endpoint=f"/r/{subreddit_name}/comments/{article}",
             params=params,

@@ -2,7 +2,8 @@ import argparse
 import json
 import os
 from enum import StrEnum
-from typing import Any, Hashable
+from typing import Any
+from collections.abc import Hashable
 
 from reddit_parser.searcher import TopLinksSearcher, Searcher, TopUsersSearcher
 from reddit_parser.api import RedditApi
@@ -50,7 +51,7 @@ def create_searcher(params: argparse.Namespace, config: Config) -> Searcher:
 
 def main() -> str:
     params = get_args()
-    os.environ["ENABLE_REDDIT_PARSER_LOGGING"] = "1" if params.log else "0"
+    os.environ["ENABLE_REDDIT_PARSER_LOGGING"] = str(params.log)
     config = load_from_env()
     searcher = create_searcher(params, config)
     report_filename = params.file

@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -12,6 +12,7 @@ class Searcher(ABC):
     def __init__(self, api: RedditApi) -> None:
         self.api = api
 
+    @abstractmethod
     def get(self, subreddit_name: str, days: int = 3) -> list[Any] | dict[str, Any]:
         """Returns list of filtered subreddit's 'links' or another info in a JSON-ready structure."""
 
@@ -44,7 +45,7 @@ class TopUsersSearcher(Searcher):
     def get(self, subreddit_name: str, days: int = 3) -> dict[str, list[str]]:
         threshold = datetime.now() - timedelta(days=days)
         links = self.get_links_from_api(subreddit_name)
-        result = {
+        result: dict[str, list[str]] = {
                     "top_users_by_posts": [],
                     "top_users_by_comments": [],
                 }
@@ -70,7 +71,7 @@ class TopUsersSearcher(Searcher):
 
     def _top_users_by_comments(self, subreddit_name: str, links: list[RedditEntity]) -> list[str]:
         link_comments_dict = {link.id: self.api.subreddits.get_comments(subreddit_name, link.id) for link in links}
-        authors = {}
+        authors: dict[str, int] = {}
         for comment_list in link_comments_dict.values():
             for comment in comment_list:
                 authors[comment.author] = authors.get(comment.author, 0) + 1
@@ -78,7 +79,7 @@ class TopUsersSearcher(Searcher):
         return [f"{author}: {authors[author]}" for author in sorted(authors, key=lambda x: authors[x], reverse=True)]
 
     def _top_users_by_posts(self, links: list[RedditEntity]) -> list[str]:
-        users_posts = {}
+        users_posts: dict[str, int] = {}
         for link in links:
             users_posts[link.author] = users_posts.get(link.author, 0) + 1
         return [f"{author}: {users_posts[author]}" for author in sorted(users_posts, key=lambda x: users_posts[x], reverse=True)]
