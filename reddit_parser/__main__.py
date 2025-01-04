@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from enum import StrEnum
 from typing import Any, Hashable
 
@@ -30,6 +31,7 @@ def get_args():
         "-f", "--file", help="File name to save results into.",
         required=False, type=str, default="result.json"
     )
+    parser.add_argument("--log", help="Enable saving responses to a log file", action="store_true")
     return parser.parse_args()
 
 
@@ -48,6 +50,7 @@ def create_searcher(params: argparse.Namespace, config: Config) -> Searcher:
 
 def main() -> str:
     params = get_args()
+    os.environ["ENABLE_REDDIT_PARSER_LOGGING"] = "1" if params.log else "0"
     config = load_from_env()
     searcher = create_searcher(params, config)
     report_filename = params.file

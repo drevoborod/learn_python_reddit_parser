@@ -1,3 +1,7 @@
+import datetime
+import json
+import logging
+import os
 import time
 from typing import Any
 
@@ -20,6 +24,12 @@ class Transport(httpx.BaseTransport):
         self._wrapper = httpx.HTTPTransport()
         self.time_to_wait = 0.0
         self.last_request_timestamp = time.time() - REQUEST_INTERVAL
+        self.logger = None
+        if int(os.getenv("ENABLE_REDDIT_PARSER_LOGGING")):
+            self.logger = logging.Logger("FileLogger")
+            self.logger.addHandler(logging.FileHandler("responses.log"))
+            self.logger.setLevel(logging.DEBUG)
+            self.logger.debug(f"\n\n{'-' * 20}\n{datetime.datetime.now()}\n")
 
     def handle_request(self, request: Request) -> Response:
         if self.time_to_wait > 0:
@@ -33,6 +43,15 @@ class Transport(httpx.BaseTransport):
         if (remained_requests := response.headers.get("X-Ratelimit-Remaining")) is not None:
             if float(remained_requests) < 2:
                 self.time_to_wait = float(response.headers["X-Ratelimit-Reset"])
+        if self.logger:
+            response.read()
+            self.logger.debug(
+                f"\n{'=' * 40}\n"
+                f"Request url: {request.url}\n"
+                f"Response body:\n"
+                f"{json.dumps(response.json(), indent=4)}"
+                f"\n{'=' * 40}\n"
+            )
         return response
 
 

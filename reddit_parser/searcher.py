@@ -28,7 +28,7 @@ class TopLinksSearcher(Searcher):
             if oldest_timestamp > threshold:
                 links.extend(self.get_links_from_api(subreddit_name, before=links[-1].name))
             else:
-                index = locate_closest_link(links, threshold)
+                index = locate_closest_link_index(links, threshold)
                 ordered = self._sort_links_by_score(links[:index])
                 return [x.model_dump() for x in ordered]
 
@@ -54,12 +54,15 @@ class TopUsersSearcher(Searcher):
         while True:
             oldest_timestamp = datetime.fromtimestamp(links[-1].created)
             if oldest_timestamp > threshold:
-                links.extend(self.get_links_from_api(subreddit_name, before=links[-1].name))
-            else:
-                index = locate_closest_link(links, threshold)
-                result["top_users_by_posts"] = self._top_users_by_posts(links[:index])
-                result["top_users_by_comments"] = self._top_users_by_comments(subreddit_name,  links[:index])
-                return result
+                new_links = self.get_links_from_api(subreddit_name, before=links[-1].name)
+                if new_links:
+                    links.extend(new_links)
+                else:
+                    break
+        index = locate_closest_link_index(links, threshold)
+        result["top_users_by_posts"] = self._top_users_by_posts(links[:index])
+        result["top_users_by_comments"] = self._top_users_by_comments(subreddit_name,  links[:index])
+        return result
 
     def get_links_from_api(self, subreddit_name: str, before: str = None, after: str = None) -> list[RedditEntity]:
         res = self.api.subreddits.get_new(subreddit_name, before=before, after=after)
@@ -81,8 +84,8 @@ class TopUsersSearcher(Searcher):
         return [f"{author}: {users_posts[author]}" for author in sorted(users_posts, key=lambda x: users_posts[x], reverse=True)]
 
 
-def locate_closest_link(links: list[RedditEntity], timestamp: datetime) -> int:
+def locate_closest_link_index(links: list[RedditEntity], timestamp: datetime) -> int:
     for index, value in enumerate(links):
         if datetime.fromtimestamp(value.created) < timestamp:
             return index
-    return 0
+    return len(links)
