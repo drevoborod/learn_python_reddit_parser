@@ -1,6 +1,6 @@
 class TestTopUsersSearcher:
     def test_get_positive(self, top_users_searcher_positive):
-        result = top_users_searcher_positive.get("abrakadabra")
+        result = top_users_searcher_positive.process("abrakadabra")
         assert result == {
             'top_users_by_comments': ['random_author_013: 10', 'random_author_001: 8', 'random_author_012: 8',
                                       'random_author_007: 7', 'random_author_011: 7', 'random_author_017: 7',
