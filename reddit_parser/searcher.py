@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -8,17 +7,11 @@ from reddit_parser.models import RedditEntity
 type Json = dict[str, Any] | list[dict[str, Any]]
 
 
-class Searcher(ABC):
+class TopLinksSearcher:
     def __init__(self, api: RedditApi) -> None:
         self.api = api
 
-    @abstractmethod
-    def get(self, subreddit_name: str, days: int = 3) -> list[Any] | dict[str, Any]:
-        """Returns list of filtered subreddit's 'links' or another info in a JSON-ready structure."""
-
-
-class TopLinksSearcher(Searcher):
-    def get(self, subreddit_name: str, days: int = 3) -> list[dict[str, Any]]:
+    def process(self, subreddit_name: str, days: int = 3) -> list[dict[str, Any]]:
         threshold = datetime.now() - timedelta(days=days)
         links = self.get_links_from_api(subreddit_name)
         if not links:
@@ -41,8 +34,11 @@ class TopLinksSearcher(Searcher):
         return sorted(links, key=lambda x: x.score, reverse=True)
 
 
-class TopUsersSearcher(Searcher):
-    def get(self, subreddit_name: str, days: int = 3) -> dict[str, list[str]]:
+class TopUsersSearcher:
+    def __init__(self, api: RedditApi) -> None:
+        self.api = api
+
+    def process(self, subreddit_name: str, days: int = 3) -> dict[str, list[str]]:
         threshold = datetime.now() - timedelta(days=days)
         links = self.get_links_from_api(subreddit_name)
         result: dict[str, list[str]] = {

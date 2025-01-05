@@ -2,10 +2,10 @@ import argparse
 import json
 import os
 from enum import StrEnum
-from typing import Any
+from typing import Any, Callable
 from collections.abc import Hashable
 
-from reddit_parser.searcher import TopLinksSearcher, Searcher, TopUsersSearcher
+from reddit_parser.searcher import TopLinksSearcher, TopUsersSearcher
 from reddit_parser.api import RedditApi
 from reddit_parser.config import load_from_env, Config
 
@@ -36,7 +36,7 @@ def get_args():
     return parser.parse_args()
 
 
-def create_searcher(params: argparse.Namespace, config: Config) -> Searcher:
+def create_searcher(params: argparse.Namespace, config: Config) -> Callable[[str, int], ...]:
     api = RedditApi(base_url=config.base_url, auth_config=config.auth)
     match params.mode:
         case TopMode.TOP_LINKS:
@@ -46,7 +46,7 @@ def create_searcher(params: argparse.Namespace, config: Config) -> Searcher:
         case _:
             raise ValueError(f"Unknown mode: {params.mode}")
     searcher.api.authorize()
-    return searcher
+    return searcher.process
 
 
 def main() -> str:
@@ -55,7 +55,7 @@ def main() -> str:
     config = load_from_env()
     searcher = create_searcher(params, config)
     report_filename = params.file
-    result = searcher.get(params.subreddit, params.days)
+    result = searcher(params.subreddit, params.days)
     save(report_filename, result)
     return f"Results saved to {report_filename}."
 
